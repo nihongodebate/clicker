@@ -356,7 +356,7 @@ export default function App() {
 
         </div>
         <footer className="mt-8 text-xs font-medium text-slate-400 tracking-wide">
-          Created by Akihiro Suwa (Busan University of Foreign Studies)
+          Created by Akihiro Suwa (BUFS)
         </footer>
       </div>
     );
