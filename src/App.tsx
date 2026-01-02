@@ -15,7 +15,7 @@ import {
   serverTimestamp,
   arrayUnion,
   increment,
-  getDoc // 追加: 部屋の存在確認用
+  getDoc 
 } from 'firebase/firestore';
 import { 
   BarChart2, 
@@ -37,7 +37,7 @@ import {
   ChevronLeft,
   Star, 
   Trophy,
-  Lock // 追加: パスワードアイコン
+  Lock 
 } from 'lucide-react';
 
 // =================================================================
@@ -71,7 +71,7 @@ export default function App() {
   const [nickname, setNickname] = useState(() => localStorage.getItem('clicker_nickname') || '');
   const [role, setRole] = useState(() => localStorage.getItem('clicker_role') || null);
   
-  // Teacher Auth State (パスワード管理用)
+  // Teacher Auth State
   const [showTeacherAuth, setShowTeacherAuth] = useState(false);
   const [teacherPassword, setTeacherPassword] = useState('');
   const [isRoomExisting, setIsRoomExisting] = useState(false);
@@ -88,7 +88,6 @@ export default function App() {
   });
 
   useEffect(() => {
-    // 匿名ログインを実行
     signInAnonymously(auth).catch((error) => {
         console.error("Auth Error", error);
     });
@@ -96,7 +95,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 先生ボタンが押されたときのチェック処理
   const handleTeacherClick = async () => {
     if (!roomCode.trim()) return;
     const formattedCode = roomCode.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -108,9 +106,7 @@ export default function App() {
       const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'clicker_rooms', formattedCode);
       const snap = await getDoc(roomRef);
       
-      // 部屋が既に存在するかチェック
       setIsRoomExisting(snap.exists());
-      // パスワード入力画面を表示
       setShowTeacherAuth(true);
     } catch (e) {
       console.error(e);
@@ -118,7 +114,6 @@ export default function App() {
     }
   };
 
-  // パスワード送信時の処理
   const submitTeacherAuth = async () => {
     if (!teacherPassword.trim()) {
         setAuthError("Password is required / パスワードを入力してください");
@@ -129,16 +124,31 @@ export default function App() {
     const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'clicker_rooms', formattedCode);
 
     if (isRoomExisting) {
-        // ログイン処理: パスワード照合
+        // 既存の部屋の場合
         const snap = await getDoc(roomRef);
-        if (snap.exists() && snap.data().adminPassword === teacherPassword) {
+        const data = snap.data();
+
+        // ★修正ポイント: 古い部屋でパスワード未設定の場合は、今回入力したパスワードを設定してあげる
+        if (data && !data.adminPassword) {
+             try {
+                 await updateDoc(roomRef, { adminPassword: teacherPassword });
+                 handleRoleSelect('teacher');
+                 setShowTeacherAuth(false);
+             } catch(e) {
+                 setAuthError("Error updating password");
+             }
+             return;
+        }
+
+        // 通常のパスワードチェック
+        if (snap.exists() && data.adminPassword === teacherPassword) {
             handleRoleSelect('teacher');
             setShowTeacherAuth(false);
         } else {
             setAuthError("Wrong Password / パスワードが違います");
         }
     } else {
-        // 新規作成処理: パスワード設定
+        // 新規部屋作成
         try {
             await setDoc(roomRef, {
                 status: 'voting', 
@@ -147,7 +157,7 @@ export default function App() {
                 responses: {},
                 history: [],
                 correctAnswer: null,
-                adminPassword: teacherPassword // パスワードを保存
+                adminPassword: teacherPassword
             });
             handleRoleSelect('teacher');
             setShowTeacherAuth(false);
@@ -198,7 +208,7 @@ export default function App() {
 
   // --- UI Components ---
 
-  // パスワード入力モーダル (Teacher Auth)
+  // Teacher Auth Modal
   if (showTeacherAuth) {
       return (
         <div className="min-h-screen bg-slate-100 flex flex-col items-center justify-center p-6">
@@ -297,7 +307,7 @@ export default function App() {
                   </div>
                   <div className="md:border-l border-slate-200 md:pl-4 border-t md:border-t-0 pt-3 md:pt-0">
                     <span className="block font-bold text-xs text-indigo-500 mb-1">KOREAN</span>
-                    선생님과 학생은 동일한 「룸 코드(방 번호)」를 입력합니다. 예: CLASS101
+                    선생님と学生は同一の「ルームコード（部屋番号）」を入力します。例: CLASS101
                   </div>
                 </div>
               </div>
@@ -317,7 +327,7 @@ export default function App() {
                   </div>
                   <div className="md:border-l border-slate-200 md:pl-4 border-t md:border-t-0 pt-3 md:pt-0">
                     <span className="block font-bold text-xs text-indigo-500 mb-1">KOREAN</span>
-                    'Student'를 선택하고 닉네임을 입력해 참여합니다. 선생님이 문제를 내면 A~E 선택지 중 하나에 투표하세요.
+                    'Student'を選択し、ニックネームを入力して参加します。先生が問題を出題したら、A〜Eの選択肢から投票してください。
                   </div>
                 </div>
               </div>
@@ -337,7 +347,7 @@ export default function App() {
                   </div>
                   <div className="md:border-l border-slate-200 md:pl-4 border-t md:border-t-0 pt-3 md:pt-0">
                     <span className="block font-bold text-xs text-indigo-500 mb-1">KOREAN</span>
-                    'Teacher'를 선택해 방을 만듭니다. 실시간으로 집계 결과를 확인 및 공개하거나, 다음문제로 진행할 수 있습니다.
+                    'Teacher'を選択して部屋を作成します。リアルタイムで集計結果を確認・公開したり、次の問題へ進むことができます。
                   </div>
                 </div>
               </div>
@@ -356,7 +366,7 @@ export default function App() {
 
         </div>
         <footer className="mt-8 text-xs font-medium text-slate-400 tracking-wide">
-          Created by Akihiro Suwa (BUFS)
+          Created by Akihiro Suwa (Busan University of Foreign Studies)
         </footer>
       </div>
     );
@@ -405,7 +415,7 @@ export default function App() {
               </button>
 
               <button
-                onClick={handleTeacherClick} // パスワードチェック呼び出し
+                onClick={handleTeacherClick} 
                 disabled={!roomCode}
                 className="group relative flex flex-col items-center justify-center p-6 bg-white border-2 border-slate-200 rounded-2xl hover:border-teal-500 hover:shadow-lg hover:-translate-y-1 transition-all disabled:opacity-50 disabled:hover:translate-y-0"
               >
